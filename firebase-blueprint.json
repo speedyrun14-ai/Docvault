@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase user UID" },
+        "fullName": { "type": "string", "description": "User full name" },
+        "email": { "type": "string", "description": "User email address" },
+        "photoUrl": { "type": "string", "description": "Profile photo URL" },
+        "authProvider": { "type": "string", "description": "Authentication provider e.g. google.com" },
+        "emailVerified": { "type": "boolean", "description": "Whether email is verified" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation server timestamp" },
+        "lastLoginAt": { "type": "string", "format": "date-time", "description": "Last login server timestamp" },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended"], "description": "Account status" },
+        "preferredTheme": { "type": "string", "enum": ["system", "dark", "light"], "description": "Theme preference" },
+        "preferredLanguage": { "type": "string", "description": "Language code" },
+        "subscriptionPlan": { "type": "string", "enum": ["free", "pro"], "description": "User subscription tier" }
+      },
+      "required": ["userId", "fullName", "email", "createdAt"]
+    },
+    "Document": {
+      "title": "Document Record",
+      "description": "Document metadata stored in DocuVault",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Document title" },
+        "category": { "type": "string", "description": "Category e.g. Invoice, Contract, Receipt" },
+        "folder": { "type": "string", "description": "Folder name or path" },
+        "pageCount": { "type": "integer", "description": "Total number of pages" },
+        "fileSizeBytes": { "type": "integer", "description": "File size in bytes" },
+        "storagePath": { "type": "string", "description": "Storage file path" },
+        "isVault": { "type": "boolean", "description": "Whether document is stored in private vault" },
+        "isFavorite": { "type": "boolean", "description": "Starred document" },
+        "ocrText": { "type": "string", "description": "Extracted OCR text" },
+        "summary": { "type": "string", "description": "AI summary" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last updated timestamp" },
+        "expiryDate": { "type": "string", "description": "Optional reminder deadline / expiry date" }
+      },
+      "required": ["userId", "title", "createdAt", "updatedAt"]
+    },
+    "Reminder": {
+      "title": "Document Reminder",
+      "description": "Reminder for document expiration or review",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "documentId": { "type": "string", "description": "Associated document ID" },
+        "title": { "type": "string", "description": "Reminder title" },
+        "dueDate": { "type": "string", "format": "date-time", "description": "Due date timestamp" },
+        "category": { "type": "string", "description": "Reminder category" },
+        "isCompleted": { "type": "boolean", "description": "Completion flag" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["userId", "title", "dueDate", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile information"
+    },
+    "/users/{userId}/documents/{documentId}": {
+      "schema": "Document",
+      "description": "User documents and scans"
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "Document expiration and renewal reminders"
+    }
+  }
+}

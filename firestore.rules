@@ -1,0 +1,142 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all unknown paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 120 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 1000)) &&
+             (!('authProvider' in data) || data.authProvider == null || (data.authProvider is string && data.authProvider.size() <= 50)) &&
+             (!('emailVerified' in data) || data.emailVerified == null || data.emailVerified is bool) &&
+             (!('accountStatus' in data) || data.accountStatus in ['active', 'suspended']) &&
+             (!('preferredTheme' in data) || data.preferredTheme in ['system', 'dark', 'light']) &&
+             (!('preferredLanguage' in data) || (data.preferredLanguage is string && data.preferredLanguage.size() <= 10)) &&
+             (!('subscriptionPlan' in data) || data.subscriptionPlan in ['free', 'pro']);
+    }
+
+    function isValidDocument(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             (!('folder' in data) || (data.folder is string && data.folder.size() <= 100)) &&
+             (!('pageCount' in data) || data.pageCount is int) &&
+             (!('fileSizeBytes' in data) || data.fileSizeBytes is int) &&
+             (!('storagePath' in data) || (data.storagePath is string && data.storagePath.size() <= 500)) &&
+             (!('isVault' in data) || data.isVault is bool) &&
+             (!('isFavorite' in data) || data.isFavorite is bool) &&
+             (!('ocrText' in data) || (data.ocrText is string && data.ocrText.size() <= 100000)) &&
+             (!('summary' in data) || (data.summary is string && data.summary.size() <= 10000)) &&
+             (!('expiryDate' in data) || (data.expiryDate is string && data.expiryDate.size() <= 50));
+    }
+
+    function isValidReminder(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.dueDate is timestamp &&
+             (!('documentId' in data) || (data.documentId is string && data.documentId.size() <= 128)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             (!('isCompleted' in data) || data.isCompleted is bool);
+    }
+
+    // User profile matching /users/{userId}
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidUser(incoming());
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUser(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'fullName', 'email', 'photoUrl', 'authProvider', 'emailVerified',
+                         'lastLoginAt', 'accountStatus', 'preferredTheme', 'preferredLanguage',
+                         'subscriptionPlan'
+                       ]);
+
+      allow delete: if isOwner(userId);
+
+      // Documents subcollection
+      match /documents/{documentId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(documentId) &&
+                         incoming().userId == userId &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidDocument(incoming());
+
+        allow update: if isOwner(userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidDocument(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'category', 'folder', 'pageCount', 'fileSizeBytes',
+                           'storagePath', 'isVault', 'isFavorite', 'ocrText', 'summary',
+                           'expiryDate', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId);
+      }
+
+      // Reminders subcollection
+      match /reminders/{reminderId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(reminderId) &&
+                         incoming().userId == userId &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidReminder(incoming());
+
+        allow update: if isOwner(userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidReminder(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'dueDate', 'documentId', 'category', 'isCompleted'
+                         ]);
+
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

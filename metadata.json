@@ -1,0 +1,6 @@
+{
+  "name": "DocuVault",
+  "description": "Premium Document Management & PDF Productivity Application",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
